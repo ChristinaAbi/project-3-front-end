@@ -1,27 +1,39 @@
 import React, { useState, useEffect } from "react";
-import { Route, Switch } from "react-router-dom";
+import { Route, Switch, withRouter } from "react-router-dom";
 import axios from "axios";
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 import NavBar from "./components/NavBar";
-// import DogList from "./components/DogList/DogList";
+import RestaurantList from "./components/RestaurantList";
+import RestaurantShow from "./components/RestaurantShow";
 import SignUpForm from "./components/SignUpForm";
 import LogInForm from "./components/LogInForm";
 import LogOut from "./components/LogOut";
-// import "./App.css";
+import UserShow from "./components/UserShow";
+import UserList from "./components/UserList";
+import UserEdit from "./components/UserEdit";
+import Homepage from "./components/Homepage";
+
+
+import "./scss/styles.scss";
 
 
 const App = (props) => {
   const [state, setState] = useState({
+    name: "",
     email: "",
     password: "",
-    isLoggedIn: false,
+    id: ""
   });
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    if (localStorage.token) {
+    if (localStorage.token && localStorage.email) {
       setIsLoggedIn(true);
+      // decode the token, grab the id out of it:
+      const decodedToken = JSON.parse(atob(localStorage.token.split(".")[1]))
+      setState({...state, email: localStorage.email, id: decodedToken.id})
     } else {
       setIsLoggedIn(false);
     }
@@ -29,10 +41,11 @@ const App = (props) => {
 
   const handleLogOut = () => {
     setState({
+      name: "",
       email: "",
-      password: "",
-      isLoggedIn: false,
+      password: ""
     });
+    setIsLoggedIn(false);
     localStorage.clear();
     props.history.push('/');
   };
@@ -45,12 +58,19 @@ const App = (props) => {
     event.preventDefault();
     try {
       const response = await axios.post("http://localhost:3001/users/signup", {
+        name: state.name,
         email: state.email,
         password: state.password,
       });
       console.log(response);
       localStorage.token = response.data.token;
+      localStorage.email = state.email;
+      // decode the token, grab the id out of it:
+      const decodedToken = JSON.parse(atob(response.data.token.split(".")[1]))
+      setState({...state, id: decodedToken.id})
       setIsLoggedIn(true);
+      props.history.push('/restaurants');
+
     } catch (err) {
       console.log(err);
     }
@@ -65,13 +85,27 @@ const App = (props) => {
         password: state.password,
       });
       localStorage.token = response.data.token;
+      localStorage.email = state.email;
+      // decode the token, grab the id out of it:
+      const decodedToken = JSON.parse(atob(response.data.token.split(".")[1]))
       setIsLoggedIn(true);
+      setState({...state, id: decodedToken.id})
+      props.history.push('/restaurants');
     } catch (error) {
       console.log(error);
+      let userChoice;
+      userChoice = prompt(`Are you already a member (yes) || (no)?`)
+      if (userChoice === 'yes'){
+          alert('Did you mistype your email?')
+      }
+      else if (userChoice === 'no'){
+          alert(`Oh... Sign up then!`);
+          props.history.push('/signup');
+      }
     }
   };
   return (
-
+   
     <div>
       <NavBar isLoggedIn={isLoggedIn} />
       <div className="body">
@@ -92,7 +126,47 @@ const App = (props) => {
             path="/logout"
             render={(props) => {
               return (
-                <LogOut isLoggedIn={isLoggedIn} handleLogOut={handleLogOut} />
+                <LogOut 
+                isLoggedIn={isLoggedIn} 
+                handleLogOut={handleLogOut} 
+                />
+                
+              );
+            }}
+          />
+          <Route
+            path="/allusers"
+            render={(props) => {
+              return (
+                <UserList 
+                isLoggedIn={isLoggedIn} 
+                />
+                
+              );
+            }}
+          />
+           
+          <Route
+            path="/profile"
+            render={(props) => {
+              return (
+                <UserShow 
+                isLoggedIn={isLoggedIn} 
+                handleLogOut={handleLogOut} 
+                user={state}
+                />
+                
+              );
+            }}
+          />
+          <Route
+            path="/${_id}/edit"
+            render={(props) => {
+              return (
+                <UserEdit 
+                isLoggedIn={isLoggedIn} 
+                />
+                
               );
             }}
           />
@@ -109,16 +183,40 @@ const App = (props) => {
             }}
           />
           <Route
+            path="/restaurants/:id"
+            // component={RestaurantShow}
+            render={(props) => {
+              return (
+                <RestaurantShow isLoggedIn={isLoggedIn} user={state}  />
+              )
+            }}
+          />
+          <Route
+            path="/restaurants"
+            render={(props) => {
+              return (
+              <RestaurantList isLoggedIn={isLoggedIn} />
+              )
+
+            }}
+          />
+          <Route
             path="/"
-            render={() => {
-              return 
-              // <DogList isLoggedIn={isLoggedIn} />;
+            render={(props) => {
+              return (
+                <Homepage 
+                isLoggedIn={isLoggedIn} 
+                />
+                
+              );
             }}
           />
         </Switch>
       </div>
 
     </div>
+
+
   );
 };
-export default App;
+export default withRouter(App);
